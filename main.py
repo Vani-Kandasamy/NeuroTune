@@ -17,9 +17,7 @@ st.set_page_config(
 
 # Configuration
 CAREGIVER_EMAILS = [
-    "caregiver1@example.com",
-    "caregiver2@example.com",
-    "admin@healthcare.com",
+    "vani.kandasamy@pyxeda.ai"
     # Add more caregiver email addresses here
 ]
 
