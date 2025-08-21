@@ -661,21 +661,26 @@ def caregiver_dashboard():
         with col1:
             st.subheader("📈 Recent Trends")
             
-            # Last 30 days trend (or last 30 sessions if no timestamp)
-            if 'timestamp' in df.columns:
-                ts = pd.to_datetime(df['timestamp'], errors='coerce')
-                cutoff = datetime.now() - timedelta(days=30)
-                recent_mask = ts >= cutoff
-                recent_data = df.loc[recent_mask].copy()
-                recent_data['__date__'] = ts[recent_mask].dt.date
-                daily_engagement = recent_data.groupby('__date__')['engagement_score_normalized'].mean()
+            # Ensure data exists before processing
+            if df is None or len(df) == 0:
+                daily_engagement = pd.Series(dtype=float)
                 x_label = 'Date'
             else:
-                # Fallback: use the last 30 records and index them as sessions
-                recent_data = df.tail(30).copy()
-                recent_data['__session__'] = range(1, len(recent_data) + 1)
-                daily_engagement = recent_data.groupby('__session__')['engagement_score_normalized'].mean()
-                x_label = 'Session #'
+                # Last 30 days trend (or last 30 sessions if no timestamp)
+                if 'timestamp' in df.columns:
+                    ts = pd.to_datetime(df['timestamp'], errors='coerce')
+                    cutoff = datetime.now() - timedelta(days=30)
+                    recent_mask = ts >= cutoff
+                    recent_data = df.loc[recent_mask].copy()
+                    recent_data['__date__'] = ts[recent_mask].dt.date
+                    daily_engagement = recent_data.groupby('__date__')['engagement_score_normalized'].mean()
+                    x_label = 'Date'
+                else:
+                    # Fallback: use the last 30 records and index them as sessions
+                    recent_data = df.tail(30).copy()
+                    recent_data['__session__'] = range(1, len(recent_data) + 1)
+                    daily_engagement = recent_data.groupby('__session__')['engagement_score_normalized'].mean()
+                    x_label = 'Session #'
             
             if not daily_engagement.empty:
                 fig_trend = px.line(
