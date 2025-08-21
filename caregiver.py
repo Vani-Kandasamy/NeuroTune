@@ -838,9 +838,9 @@ def caregiver_dashboard():
                     
                     st.rerun()
                     
-            except Exception as e:
-                st.error(f"Error processing file: {str(e)}")
-                st.info("Please ensure your CSV file matches the expected format with electrode-specific EEG data.")
+                except Exception as e:
+                    st.error(f"Error processing file: {str(e)}")
+                    st.info("Please ensure your CSV file matches the expected format with electrode-specific EEG data.")
         
         # Show expected format
         st.subheader("📋 Expected Data Format")
