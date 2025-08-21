@@ -439,7 +439,10 @@ def patient_specific_analysis(patient_df):
         st.metric("Total Sessions", sessions)
     
     with col2:
-        total_time = patient_df['duration_seconds'].sum() / 60
+        if 'duration_seconds' in patient_df.columns:
+            total_time = patient_df['duration_seconds'].sum() / 60
+        else:
+            total_time = 0
         st.metric("Total Time", f"{total_time:.0f} min")
     
     with col3:
@@ -551,7 +554,7 @@ def export_patient_report(df):
         'report_date': datetime.now().isoformat(),
         'summary': {
             'total_sessions': len(patient_df),
-            'total_duration_minutes': patient_df['duration_seconds'].sum() / 60,
+            'total_duration_minutes': (patient_df['duration_seconds'].sum() / 60) if 'duration_seconds' in patient_df.columns else 0,
             'average_engagement': patient_df['engagement_score_normalized'].mean(),
             'average_focus': (10 - patient_df['focus_score_normalized']).mean(),
             'average_relaxation': patient_df['relaxation_score_normalized'].mean(),
@@ -835,8 +838,9 @@ def caregiver_dashboard():
                                 st.metric("Model Accuracy", f"{st.session_state.ml_model_results['accuracy']:.1%}")
                             else:
                                 st.metric("Model Status", "Ready")
-                    
-                    st.rerun()
+                        
+                        # Rerun to refresh state after successful upload/process
+                        st.rerun()
                     
                 except Exception as e:
                     st.error(f"Error processing file: {str(e)}")
