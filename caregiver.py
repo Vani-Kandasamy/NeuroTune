@@ -41,7 +41,7 @@ EXPECTED_COLUMNS = [
     'Beta_AF8_mean', 'Beta_AF8_std', 'Beta_TP10_mean', 'Beta_TP10_std',
     'Gamma_TP9_mean', 'Gamma_TP9_std', 'Gamma_AF7_mean', 'Gamma_AF7_std',
     'Gamma_AF8_mean', 'Gamma_AF8_std', 'Gamma_TP10_mean', 'Gamma_TP10_std',
-    'Melody'
+    'Melody #'
 ]
 
 # Melody categories for ML prediction
@@ -128,8 +128,8 @@ def process_eeg_scores(df):
     df_processed = df.copy()
     
     # Ensure melody category is available (map from target column if needed)
-    if 'melody_category' not in df_processed.columns and 'Melody' in df_processed.columns:
-        df_processed['melody_category'] = df_processed['Melody']
+    if 'melody_category' not in df_processed.columns and 'Melody #' in df_processed.columns:
+        df_processed['melody_category'] = df_processed['Melody #']
     
     # Compute aggregate EEG band features across available electrodes
     # Expect columns like 'Delta_TP9_mean', 'Theta_AF7_mean', etc.
@@ -309,9 +309,9 @@ def cognitive_insights_dashboard(df):
     st.subheader("📈 Cognitive Response by Melody Type")
     
     # Ensure melody_category exists
-    if 'melody_category' not in df.columns and 'Melody' in df.columns:
+    if 'melody_category' not in df.columns and 'Melody #' in df.columns:
         df = df.copy()
-        df['melody_category'] = df['Melody']
+        df['melody_category'] = df['Melody #']
     
     category_analysis = df.groupby('melody_category').agg({
         'engagement_score_normalized': 'mean',
@@ -399,8 +399,8 @@ def cognitive_insights_dashboard(df):
         
         with col1:
             # Generate distribution of melody preferences
-            if 'Melody' in df.columns:
-                melody_dist = df['Melody'].value_counts().sort_index()
+            if 'Melody #' in df.columns:
+                melody_dist = df['Melody #'].value_counts().sort_index()
                 fig_melody = px.bar(
                     x=[MELODY_CATEGORIES.get(int(i), str(i)) for i in melody_dist.index],
                     y=melody_dist.values,
@@ -411,7 +411,7 @@ def cognitive_insights_dashboard(df):
                 )
                 st.plotly_chart(fig_melody, use_container_width=True)
             else:
-                st.info("No 'Melody' column available for distribution plot.")
+                st.info("No 'Melody #' column available for distribution plot.")
         
         with col2:
             # Average by electrode
@@ -755,12 +755,12 @@ def caregiver_dashboard():
             - **Frequency Bands per Electrode**: `Delta_TP9_mean`, `Delta_TP9_std`, `Delta_AF7_mean`, etc.
             - **Electrodes**: TP9, AF7, AF8, TP10 (Muse headband positions)
             - **Frequency Bands**: Delta, Theta, Alpha, Beta, Gamma
-            - **Target**: `Melody` (1=Classical, 2=Rock, 3=Pop, 4=Rap, 5=R&B)
+            - **Target**: `Melody #` (1=Classical, 2=Rock, 3=Pop, 4=Rap, 5=R&B)
             - **Note**: Patient ID will be automatically assigned - do not include `user_id` column
             
             **Expected Format Example:**
             ```
-            Delta_TP9_mean, Delta_TP9_std, Delta_AF7_mean, Delta_AF7_std, ..., Melody
+            Delta_TP9_mean, Delta_TP9_std, Delta_AF7_mean, Delta_AF7_std, ..., Melody #
             15.2, 3.1, 14.8, 2.9, ..., 1
             ```
             """)
@@ -776,7 +776,7 @@ def caregiver_dashboard():
                     for band in ['Delta', 'Theta', 'Alpha', 'Beta', 'Gamma']:
                         for electrode in ELECTRODES:
                             required_cols.append(f'{band}_{electrode}_mean')
-                    required_cols.append('Melody')
+                    required_cols.append('Melody #')
                     
                     missing_cols = [col for col in required_cols if col not in new_data.columns]
                     
@@ -838,13 +838,13 @@ def caregiver_dashboard():
                     
                     st.rerun()
                     
-                except Exception as e:
-                    st.error(f"Error processing file: {str(e)}")
-                    st.info("Please ensure your CSV file matches the expected format with electrode-specific EEG data.")
+            except Exception as e:
+                st.error(f"Error processing file: {str(e)}")
+                st.info("Please ensure your CSV file matches the expected format with electrode-specific EEG data.")
         
         # Show expected format
         st.subheader("📋 Expected Data Format")
-        sample_cols = ['Delta_TP9_mean', 'Delta_TP9_std', 'Theta_TP9_mean', 'Alpha_TP9_mean', 'Beta_TP9_mean', 'Gamma_TP9_mean', 'Melody']
+        sample_cols = ['Delta_TP9_mean', 'Delta_TP9_std', 'Theta_TP9_mean', 'Alpha_TP9_mean', 'Beta_TP9_mean', 'Gamma_TP9_mean', 'Melody #']
         sample_data = pd.DataFrame({
             'Delta_TP9_mean': [15.2, 14.8, 16.1],
             'Delta_TP9_std': [3.1, 2.9, 3.4],
@@ -852,7 +852,7 @@ def caregiver_dashboard():
             'Alpha_TP9_mean': [18.7, 19.2, 17.9],
             'Beta_TP9_mean': [14.3, 15.1, 13.8],
             'Gamma_TP9_mean': [8.2, 7.9, 8.5],
-            'Melody': [1, 2, 3]
+            'Melody #': [1, 2, 3]
         })
         st.dataframe(sample_data)
         
@@ -864,7 +864,7 @@ def caregiver_dashboard():
                 'engagement_score_normalized': 'mean',
                 'focus_score_normalized': 'mean', 
                 'relaxation_score_normalized': 'mean',
-                'Melody': 'count'
+                'Melody #': 'count'
             }).round(2)
             patient_summary.columns = ['Avg Engagement', 'Avg Focus', 'Avg Relaxation', 'Total Records']
             st.dataframe(patient_summary)
