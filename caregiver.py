@@ -176,7 +176,7 @@ def initialize_caregiver_session_state():
     
     if 'ml_model_results' not in st.session_state:
         # Try to load default pre-trained model first
-        default_model_path = "random_forest_model.pkl"
+        default_model_path = "best_RF_with_time"
         if os.path.exists(default_model_path):
             model_data = load_pretrained_model(default_model_path)
             if model_data:

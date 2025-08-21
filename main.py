@@ -22,7 +22,7 @@ CAREGIVER_EMAILS = [
 ]
 
 # Google OAuth configuration
-GOOGLE_CLIENT_ID = st.secrets["GOOGLE_CLIENT_ID"]
+GOOGLE_CLIENT_ID = st.secrets["client_id"]
 
 def verify_google_token(token: str) -> Dict[str, Any]:
     """Verify Google ID token and return user info"""
