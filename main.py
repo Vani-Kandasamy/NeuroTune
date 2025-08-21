@@ -11,12 +11,11 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-IMAGE_ADDRESS = "https://upload.wikimedia.org/wikipedia/commons/0/0a/EEG_frequency_bands.png"
+IMAGE_ADDRESS = "https://www.denvercenter.org/wp-content/uploads/2024/10/music-therapy.jpg"
 
 # Caregiver emails (simple list)
 CAREGIVER_EMAILS = [
-    "caregiver1@example.com",
-    "caregiver2@example.com",
+    "vaniksaras@gmail.com"
 ]
 
 def is_caregiver(email: str) -> bool:
