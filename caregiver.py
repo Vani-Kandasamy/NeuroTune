@@ -160,7 +160,7 @@ def process_eeg_scores(df):
 
 def load_default_model():
     """Load default pre-trained Random Forest model from pickle file"""
-    model_path = "random_forest_model.pkl"  # Default model file name
+    model_path = "best_RF_with_time"  # Default model file name
     
     try:
         with open(model_path, 'rb') as f:
