@@ -15,6 +15,7 @@ import json
 import random
 import pickle
 from io import StringIO
+import os
 
 # EEG frequency bands (Hz) and electrode positions
 FREQUENCY_BANDS = {
@@ -51,6 +52,14 @@ MELODY_CATEGORIES = {
     4: "Rap",
     5: "R&B"
 }
+
+
+class IdentityScaler:
+    """A simple passthrough scaler used when a fitted scaler is unavailable."""
+    def fit(self, X, y=None):
+        return self
+    def transform(self, X):
+        return X
 
 
 def calculate_engagement_score(row):
@@ -118,6 +127,19 @@ def process_eeg_scores(df):
     """Process EEG data and calculate cognitive scores"""
     df_processed = df.copy()
     
+    # Ensure melody category is available (map from target column if needed)
+    if 'melody_category' not in df_processed.columns and 'Melody' in df_processed.columns:
+        df_processed['melody_category'] = df_processed['Melody']
+    
+    # Compute aggregate EEG band features across available electrodes
+    # Expect columns like 'Delta_TP9_mean', 'Theta_AF7_mean', etc.
+    band_names = ['Delta', 'Theta', 'Alpha', 'Beta', 'Gamma']
+    for band in band_names:
+        band_cols = [c for c in df_processed.columns if c.startswith(f"{band}_") and c.endswith("_mean")]
+        if band_cols:
+            # store as lowercase band name (e.g., 'delta')
+            df_processed[band.lower()] = df_processed[band_cols].mean(axis=1)
+    
     # Calculate cognitive scores
     df_processed['engagement_score'] = df.apply(calculate_engagement_score, axis=1)
     df_processed['focus_score'] = df.apply(calculate_focus_score, axis=1)
@@ -127,7 +149,11 @@ def process_eeg_scores(df):
     for score_col in ['engagement_score', 'focus_score', 'relaxation_score']:
         min_val = df_processed[score_col].min()
         max_val = df_processed[score_col].max()
-        df_processed[f'{score_col}_normalized'] = 10 * (df_processed[score_col] - min_val) / (max_val - min_val)
+        if pd.isna(min_val) or pd.isna(max_val) or max_val == min_val:
+            # Avoid division by zero; set neutral value 5
+            df_processed[f'{score_col}_normalized'] = 5.0
+        else:
+            df_processed[f'{score_col}_normalized'] = 10 * (df_processed[score_col] - min_val) / (max_val - min_val)
     
     return df_processed
 
@@ -150,9 +176,19 @@ def load_default_model():
         else:
             # If pickle contains just the model
             model = model_data
-            scaler = StandardScaler()  # Create default scaler
+            scaler = None
             feature_names = []
             accuracy = 0.0
+        
+        # If scaler is missing or not fitted, fall back to IdentityScaler
+        if scaler is None:
+            scaler = IdentityScaler()
+        else:
+            # Try a light check to see if scaler is fitted; if not, replace
+            try:
+                _ = scaler.transform(np.zeros((1, getattr(scaler, 'n_features_in_', 1))))
+            except Exception:
+                scaler = IdentityScaler()
         
         return {
             'model': model,
@@ -175,15 +211,11 @@ def initialize_caregiver_session_state():
         st.session_state.processed_eeg_data = None
     
     if 'ml_model_results' not in st.session_state:
-        # Try to load default pre-trained model first
-        default_model_path = "best_RF_with_time"
-        if os.path.exists(default_model_path):
-            model_data = load_pretrained_model(default_model_path)
-            if model_data:
-                st.session_state.ml_model_results = model_data
-                st.success(f"✅ Loaded default pre-trained model from {default_model_path}")
-            else:
-                st.session_state.ml_model_results = None
+        # Try to load default pre-trained model
+        model_data = load_default_model()
+        if model_data:
+            st.session_state.ml_model_results = model_data
+            st.success("✅ Loaded default pre-trained model 'random_forest_model.pkl'")
         else:
             st.session_state.ml_model_results = None
 
@@ -276,6 +308,11 @@ def cognitive_insights_dashboard(df):
     # Cognitive scores by melody category
     st.subheader("📈 Cognitive Response by Melody Type")
     
+    # Ensure melody_category exists
+    if 'melody_category' not in df.columns and 'Melody' in df.columns:
+        df = df.copy()
+        df['melody_category'] = df['Melody']
+    
     category_analysis = df.groupby('melody_category').agg({
         'engagement_score_normalized': 'mean',
         'focus_score_normalized': 'mean', 
@@ -362,18 +399,19 @@ def cognitive_insights_dashboard(df):
         
         with col1:
             # Generate distribution of melody preferences
-            melody_dist = df['Melody'].value_counts().sort_index()
-            
-            fig_melody = px.bar(
-                x=[MELODY_CATEGORIES[i] for i in melody_dist.index],
-                y=melody_dist.values,
-                title="🎵 Music Genre Preference Distribution",
-                labels={'x': 'Music Genre', 'y': 'Count'},
-                color=melody_dist.values,
-                color_continuous_scale="viridis"
-            )
-            
-            st.plotly_chart(fig_melody, use_container_width=True)
+            if 'Melody' in df.columns:
+                melody_dist = df['Melody'].value_counts().sort_index()
+                fig_melody = px.bar(
+                    x=[MELODY_CATEGORIES.get(int(i), str(i)) for i in melody_dist.index],
+                    y=melody_dist.values,
+                    title="🎵 Music Genre Preference Distribution",
+                    labels={'x': 'Music Genre', 'y': 'Count'},
+                    color=melody_dist.values,
+                    color_continuous_scale="viridis"
+                )
+                st.plotly_chart(fig_melody, use_container_width=True)
+            else:
+                st.info("No 'Melody' column available for distribution plot.")
         
         with col2:
             # Average by electrode
@@ -457,12 +495,20 @@ def patient_specific_analysis(patient_df):
     
     # Use the trained model to predict best melody category for this patient
     model_results = st.session_state.ml_model_results
+    if not model_results or 'model' not in model_results or model_results['model'] is None:
+        st.warning("ML model not available for recommendations. Please add 'random_forest_model.pkl'.")
+        return
     
     # Get average EEG features for this patient
     feature_columns = ['delta', 'theta', 'alpha', 'beta', 'gamma', 
                       'engagement_score', 'focus_score', 'relaxation_score']
-    
+    # Ensure all required features exist
+    missing_features = [c for c in feature_columns if c not in patient_df.columns]
+    if missing_features:
+        st.warning(f"Missing features for prediction: {missing_features}")
+        return
     patient_features = patient_df[feature_columns].mean().values.reshape(1, -1)
+    # Apply scaler (IdentityScaler if real scaler not available)
     patient_features_scaled = model_results['scaler'].transform(patient_features)
     
     # Predict probabilities for each melody category
@@ -523,7 +569,8 @@ def export_patient_report(df):
             'focus_score_normalized': 'mean',
             'relaxation_score_normalized': 'mean'
         }).to_dict(),
-        'ml_model_accuracy': st.session_state.ml_model_results['accuracy'],
+        'ml_model_accuracy': (st.session_state.ml_model_results.get('accuracy')
+                              if st.session_state.get('ml_model_results') else None),
         'recommendations': "Based on EEG patterns, focus on melodies that enhance target cognitive states"
     }
     
@@ -627,23 +674,25 @@ def caregiver_dashboard():
                 st.info("No recent data available")
         
         with col2:
-            st.subheader("🎯 Top Performing Melodies")
-            
-            top_melodies = df.groupby(['melody_category', 'melody_name'])['engagement_score_normalized'].mean().nlargest(5)
-            
-            melody_data = []
-            for (category, name), score in top_melodies.items():
-                melody_data.append({
-                    'melody': name,
-                    'category': MELODY_CATEGORIES[category],
-                    'avg_score': score
-                })
-            
-            for melody in melody_data:
-                st.markdown(f"""
-                **{melody['melody']}** ({melody['category']})  
-                Avg Score: {melody['avg_score']:.1f}/10
-                """)
+            st.subheader("🎯 Top Performing Melodies / Categories")
+            if df is not None and not df.empty:
+                if 'melody_name' in df.columns:
+                    top = df.groupby(['melody_category', 'melody_name'])['engagement_score_normalized'].mean().nlargest(5)
+                    melody_data = []
+                    for (category, name), score in top.items():
+                        melody_data.append({
+                            'melody': name,
+                            'category': MELODY_CATEGORIES.get(category, str(category)),
+                            'avg_score': score
+                        })
+                    for melody in melody_data:
+                        st.markdown(f"**{melody['melody']}** ({melody['category']})  \nAvg Score: {melody['avg_score']:.1f}/10")
+                else:
+                    top = df.groupby(['melody_category'])['engagement_score_normalized'].mean().nlargest(5)
+                    for category, score in top.items():
+                        st.markdown(f"**{MELODY_CATEGORIES.get(category, str(category))}**  \nAvg Score: {score:.1f}/10")
+            else:
+                st.info("No data available yet.")
     
     elif page == "ML Model Performance":
         ml_model_dashboard()
@@ -789,9 +838,9 @@ def caregiver_dashboard():
                     
                     st.rerun()
                     
-                except Exception as e:
-                    st.error(f"Error processing file: {str(e)}")
-                    st.info("Please ensure your CSV file matches the expected format with electrode-specific EEG data.")
+            except Exception as e:
+                st.error(f"Error processing file: {str(e)}")
+                st.info("Please ensure your CSV file matches the expected format with electrode-specific EEG data.")
         
         # Show expected format
         st.subheader("📋 Expected Data Format")
