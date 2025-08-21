@@ -160,7 +160,7 @@ def process_eeg_scores(df):
 
 def load_default_model():
     """Load default pre-trained Random Forest model from pickle file"""
-    model_path = "best_RF_with_time"  # Default model file name
+    model_path = "best_RF_with_time"  # Default model file name (no extension)
     
     try:
         with open(model_path, 'rb') as f:
@@ -215,7 +215,7 @@ def initialize_caregiver_session_state():
         model_data = load_default_model()
         if model_data:
             st.session_state.ml_model_results = model_data
-            st.success("✅ Loaded default pre-trained model 'random_forest_model.pkl'")
+            st.success("✅ Loaded default pre-trained model 'best_RF_with_time'")
         else:
             st.session_state.ml_model_results = None
 
@@ -250,11 +250,11 @@ def ml_model_dashboard():
     results = st.session_state.ml_model_results
     
     if not results:
-        st.warning("No ML model available. Please ensure 'random_forest_model.pkl' is in the project directory.")
+        st.warning("No ML model available. Please ensure 'best_RF_with_time' is in the project directory.")
         return
     
     if results.get('loaded_from_file', False):
-        st.success("✅ **Using Pre-trained Model** - `random_forest_model.pkl`")
+        st.success("✅ **Using Pre-trained Model** - `best_RF_with_time`")
         
         # Show model capabilities for pre-trained model
         st.markdown("""
@@ -281,7 +281,7 @@ def ml_model_dashboard():
         st.info("📊 **Ready for Predictions**: Upload EEG data to get music genre predictions and cognitive insights.")
         
     else:
-        st.error("❌ **No Model Available**: Please place your trained 'random_forest_model.pkl' file in the project directory.")
+        st.error("❌ **No Model Available**: Please place your trained 'best_RF_with_time' file in the project directory.")
 
 def cognitive_insights_dashboard(df):
     """Display cognitive and emotional insights"""
@@ -499,7 +499,7 @@ def patient_specific_analysis(patient_df):
     # Use the trained model to predict best melody category for this patient
     model_results = st.session_state.ml_model_results
     if not model_results or 'model' not in model_results or model_results['model'] is None:
-        st.warning("ML model not available for recommendations. Please add 'random_forest_model.pkl'.")
+        st.warning("ML model not available for recommendations. Please add 'best_RF_with_time'.")
         return
     
     # Get average EEG features for this patient
@@ -717,9 +717,9 @@ def caregiver_dashboard():
         # Show current model status
         model_results = st.session_state.ml_model_results
         if model_results and model_results.get('loaded_from_file', False):
-            st.info("🤖 **Using Default Pre-trained Model** - `random_forest_model.pkl`")
+            st.info("🤖 **Using Default Pre-trained Model** - `best_RF_with_time`")
         else:
-            st.warning("⚠️ **No Model Available** - Please ensure `random_forest_model.pkl` is in the project directory")
+            st.warning("⚠️ **No Model Available** - Please ensure `best_RF_with_time` is in the project directory")
         
         st.markdown("---")
         
@@ -819,7 +819,7 @@ def caregiver_dashboard():
                         if st.session_state.ml_model_results and st.session_state.ml_model_results.get('loaded_from_file', False):
                             st.info("✅ Data processed successfully. Using default pre-trained model for predictions.")
                         else:
-                            st.warning("⚠️ No pre-trained model available. Please ensure 'random_forest_model.pkl' is in the project directory for ML predictions.")
+                            st.warning("⚠️ No pre-trained model available. Please ensure 'best_RF_with_time' is in the project directory for ML predictions.")
                         
                         st.success(f"Successfully uploaded and processed {len(new_data)} records for Patient {selected_patient}!")
                         
