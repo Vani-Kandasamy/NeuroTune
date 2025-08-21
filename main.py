@@ -1,113 +1,73 @@
 import streamlit as st
-import json
-from google.oauth2 import id_token
-from google.auth.transport import requests
-import os
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from general_user import general_user_dashboard as music_therapy_dashboard
 from caregiver import caregiver_dashboard as ml_caregiver_dashboard
 
 # Configure Streamlit page
 st.set_page_config(
-    page_title="Healthcare Portal",
-    page_icon="🏥",
+    page_title="NeuroTunes",
+    page_icon="🎵",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Configuration
+IMAGE_ADDRESS = "https://upload.wikimedia.org/wikipedia/commons/0/0a/EEG_frequency_bands.png"
+
+# Caregiver emails (simple list)
 CAREGIVER_EMAILS = [
-    "vani.kandasamy@pyxeda.ai"
-    # Add more caregiver email addresses here
+    "caregiver1@example.com",
+    "caregiver2@example.com",
 ]
 
-# Google OAuth configuration
-GOOGLE_CLIENT_ID = st.secrets["auth0_client_id"]
-
-def verify_google_token(token: str) -> Dict[str, Any]:
-    """Verify Google ID token and return user info"""
-    try:
-        idinfo = id_token.verify_oauth2_token(
-            token, requests.Request(), GOOGLE_CLIENT_ID
-        )
-        return idinfo
-    except ValueError:
-        return None
-
 def is_caregiver(email: str) -> bool:
-    """Check if email belongs to a caregiver"""
-    return email.lower() in [email.lower() for email in CAREGIVER_EMAILS]
+    return email.lower() in [e.lower() for e in CAREGIVER_EMAILS]
 
-def login_page():
-    """Display login page with Google Sign-In"""
-    st.title("🏥 Healthcare Portal")
-    st.markdown("---")
-    
-    col1, col2, col3 = st.columns([1, 2, 1])
-    
-    with col2:
-        st.markdown("""
-        <div style='text-align: center; padding: 2rem;'>
-            <h3>Welcome to Healthcare Portal</h3>
-            <p>Please sign in with your Google account to continue</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Google Sign-In button (placeholder - requires frontend integration)
-        st.markdown("""
-        <div style='text-align: center; margin: 2rem 0;'>
-            <div id="g_id_onload"
-                 data-client_id="your-google-client-id"
-                 data-callback="handleCredentialResponse">
-            </div>
-            <div class="g_id_signin" data-type="standard"></div>
-        </div>
-        
-        <script src="https://accounts.google.com/gsi/client" async defer></script>
-        <script>
-        function handleCredentialResponse(response) {
-            // This would normally send the token to Streamlit
-            console.log("Encoded JWT ID token: " + response.credential);
-        }
-        </script>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("---")
-        st.info("📝 **For Demo**: Enter your email below to simulate login")
-        
-        # Demo login form
-        with st.form("demo_login"):
-            email = st.text_input("Email Address", placeholder="user@example.com")
-            name = st.text_input("Full Name", placeholder="John Doe")
-            submit = st.form_submit_button("Sign In (Demo)", use_container_width=True)
-            
-            if submit and email and name:
-                # Store user info in session state
-                st.session_state.user_info = {
-                    'email': email,
-                    'name': name,
-                    'verified_email': True
-                }
-                st.session_state.authenticated = True
-                st.rerun()
+def get_user_simple() -> Optional[Dict[str, Any]]:
+    """Use Streamlit experimental auth only (no fallback)."""
+    exp_user = getattr(st, "experimental_user", None)
+    has_login = hasattr(st, "login") and hasattr(st, "logout")
+    if not (exp_user is not None and hasattr(exp_user, "is_logged_in") and has_login):
+        st.error("Streamlit experimental auth is not available in this environment. Please upgrade Streamlit or enable authentication.")
+        st.stop()
+    # Sidebar auth controls
+    with st.sidebar:
+        if not exp_user.is_logged_in:
+            if st.button("Log in with Google", type="primary"):
+                st.login()
+            return None
+        else:
+            if st.button("Log out", type="secondary"):
+                st.logout()
+                return None
+    # Return user info
+    name = getattr(exp_user, "name", None) or getattr(exp_user, "username", None) or "User"
+    email = getattr(exp_user, "email", None) or ""
+    st.markdown(f"Hello, <span style='color: orange; font-weight: bold;'>{name}</span>!", unsafe_allow_html=True)
+    return {"name": name, "email": email}
 
 
 
 def main():
-    """Main application logic"""
-    # Initialize session state
-    if 'authenticated' not in st.session_state:
-        st.session_state.authenticated = False
-    
-    if not st.session_state.authenticated:
-        login_page()
+    """Main application logic (simple auth + role routing)."""
+    # Title and image
+    st.title("NeuroTunes")
+    st.image(IMAGE_ADDRESS, caption="EEG Frequency Bands (Delta, Theta, Alpha, Beta, Gamma)")
+    st.markdown("---")
+
+    # Authenticate
+    user = get_user_simple()
+    if not user:
+        st.stop()
+    st.session_state.user_info = user
+
+    # Route by role based on email
+    user_email = (user.get("email") or "").strip()
+    if user_email and is_caregiver(user_email):
+        # Caregiver dashboard
+        ml_caregiver_dashboard()
     else:
-        user_email = st.session_state.user_info['email']
-        
-        if is_caregiver(user_email):
-            ml_caregiver_dashboard()
-        else:
-            music_therapy_dashboard()
+        # General user dashboard
+        music_therapy_dashboard()
 
 if __name__ == "__main__":
     main()
