@@ -15,7 +15,7 @@ IMAGE_ADDRESS = "https://www.denvercenter.org/wp-content/uploads/2024/10/music-t
 
 # Caregiver emails (simple list)
 CAREGIVER_EMAILS = [
-    "vaniksaras@gmail.com"
+    "aiclubcolab@gmail.com"
 ]
 
 def is_caregiver(email: str) -> bool:
